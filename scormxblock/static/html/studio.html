@@ -3,13 +3,51 @@
     <li class="field comp-setting-entry is-set">
       <div class="wrapper-comp-setting">
         <label class="label setting-label" for="display_name">Display Name</label>
-        <input class="input setting-input" name="display_name" id="display_name" value="{self.display_name}" type="text" />
+        <input class="input setting-input" name="display_name" id="display_name" value="${block.display_name}" type="text" />
       </div>
     </li>
     <li class="field comp-setting-entry is-set">
       <div class="wrapper-comp-setting">
-        <label class="label setting-label" for="scorm_file">Upload scorm file</label>
-        <input class="input setting-input" name="scorm_file" id="scorm_file" value="{self.scorm_file}" type="file" />
+        <label class="label setting-label" for="scorm_file">Upload SCORM File</label>
+        <input class="input setting-input" name="scorm_file" id="scorm_file" value="${block.scorm_file}" type="file" />
+      </div>
+    </li>
+    <li class="field comp-setting-entry is-set">
+      <div class="wrapper-comp-setting">
+        <label class="label setting-label" for="scorm_file">SCORM Player</label>
+        <select class="setting-input" name="scorm_player" id="scorm_player">
+          %for opt in block.fields['scorm_player'].values:
+              <option value="${opt}[0]" ${block.scorm_player == opt[0] and 'selected'}>${opt[1]}</option>
+          %endfor
+        </select>
+      </div>
+    </li>
+    <li class="field comp-setting-entry is-set">
+      <div class="wrapper-comp-setting">
+        <label class="label setting-label" for="weight">Weight</label>
+        <input class="input setting-input" name="weight" id="weight" value="${block.weight}" type="text" />
+      </div>
+    </li>
+    <li class="field comp-setting-entry is-set">
+      <div class="wrapper-comp-setting">
+        <fieldset>
+          <legend class="label setting-label">Display Type</legend>
+          %for opt in block.fields['display_type'].values:
+            <label class="label" for="display_type_${opt}">${opt}</label> <input class="input setting-input" name="display_type" id="display_type_${opt}" ${block.display_type==opt and 'checked '} type="radio" value="${opt}" style="width:auto;height:auto" />
+          %endfor
+        </fieldset>
+      </div>
+    </li>
+    <li class="field comp-setting-entry is-set">
+      <div class="wrapper-comp-setting">
+        <label class="label setting-label" for="display_width">Display Width</label>
+        <input class="input setting-input" name="display_width" id="display_width" value="${block.display_width}" type="text" />
+      </div>
+    </li>
+    <li class="field comp-setting-entry is-set">
+      <div class="wrapper-comp-setting">
+        <label class="label setting-label" for="display_height">Display Height</label>
+        <input class="input setting-input" name="display_height" id="display_height" value="${block.display_height}" type="text" />
       </div>
     </li>
 
