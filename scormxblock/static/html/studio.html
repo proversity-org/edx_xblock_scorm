@@ -17,7 +17,7 @@
         <label class="label setting-label" for="scorm_file">SCORM Player</label>
         <select class="setting-input" name="scorm_player" id="scorm_player">
           %for opt in block.fields['scorm_player'].values:
-              <option value="${opt}[0]" ${block.scorm_player == opt[0] and 'selected'}>${opt[1]}</option>
+              <option value="${opt['value']}" ${block.scorm_player == opt['value'] and 'selected'}>${opt['display_name']}</option>
           %endfor
         </select>
       </div>

@@ -18,10 +18,11 @@ from mako.template import Template as MakoTemplate
 _ = lambda text: text
 
 
-SCORM_PKG_INTERNAL = ('SCORM_PKG_INTERNAL', 'index.html in SCORM package')
+SCORM_PKG_INTERNAL = {"value": "SCORM_PKG_INTERNAL", "display_name": "index.html in SCORM package"}
 
 
-DEFINED_PLAYERS = getattr(settings, "SCORM_PLAYER_BACKENDS", [])
+DEFINED_PLAYERS = settings.ENV_TOKENS.get("SCORM_PLAYER_BACKENDS", {})
+
 
 
 class ScormXBlock(XBlock):
@@ -35,11 +36,11 @@ class ScormXBlock(XBlock):
         scope=Scope.settings
     )
     scorm_file = String(
-        display_name=_("Upload scorm file"),
+        display_name=_("Upload scorm file (.zip)"),
         scope=Scope.settings
     )
     scorm_player = String(
-        values=[player['name'] for  player in DEFINED_PLAYERS] + [SCORM_PKG_INTERNAL, ],
+        values=[{"value": key, "display_name": DEFINED_PLAYERS[key]['name']} for key in DEFINED_PLAYERS.keys()] + [SCORM_PKG_INTERNAL, ],
         display_name=_("SCORM player"),
         help=_("SCORM player configured in Django settings, or index.html file contained in SCORM package"),
         scope=Scope.settings
@@ -72,6 +73,31 @@ class ScormXBlock(XBlock):
         scope=Scope.settings
     )
 
+    @property
+    def student_id(self):
+        if hasattr(self, "scope_ids"):
+            return self.scope_ids.user_id
+        else:
+            return None
+
+    @property
+    def student_name(self):
+        # TODO: dummy 
+        return "Wilson,Bryan"
+
+    @property
+    def course_id(self):
+        if hasattr(self, "xmodule_runtime"):
+            return self._serialize_opaque_key(self.xmodule_runtime.course_id)
+        else:
+            return None
+
+    def _serialize_opaque_key(self, key):
+        if hasattr(key, 'to_deprecated_string'):
+            return key.to_deprecated_string()
+        else:
+            return unicode(key)        
+
     def resource_string(self, path):
         """Handy helper for getting resources from our kit."""
         data = pkg_resources.resource_string(__name__, path)
@@ -80,8 +106,35 @@ class ScormXBlock(XBlock):
     def student_view(self, context=None):
         scheme = 'https' if settings.HTTPS == 'on' else 'http'
         scorm_file = '{}://{}{}'.format(scheme, settings.ENV_TOKENS.get('LMS_BASE'), self.scorm_file)
+        scorm_player_url = ""
+
+        if self.scorm_player == SCORM_PKG_INTERNAL:
+            scorm_player_url = '{0}/index.html'.format(scorm_file) 
+        elif self.scorm_player:
+            # SSLA: launch.htm?courseId=1&studentName=Caudill,Brian&studentId=1&courseDirectory=courses/SSLA_tryout
+            
+            # scorm_player_config = DEFINED_PLAYERS[self.scorm_player]['configuration']
+            # scorm_player_url_base = scorm_player_config['player_html']
+
+            # TODO: temp dummy. specific to SSLA
+            player_config = DEFINED_PLAYERS[self.scorm_player]
+            scorm_player_url_base = '{}://{}{}'.format(scheme, settings.ENV_TOKENS.get('LMS_BASE'), player_config['location'])
+            # scorm_player_url_base = 'http://local.nyif:8080/{}'.format(player_config['location'])
+            scorm_player_url_query = ('courseId={course_id}&' 
+                                      'studentName={student_name}&'
+                                      'studentId={student_id}&'
+                                      'courseDirectory={course_directory}'
+                                      ).format(
+                                      course_id=self.course_id,
+                                      student_name=self.student_name,
+                                      student_id=self.student_id,
+                                      course_directory=self.scorm_file)
+            scorm_player_url = '{0}?{1}'.format(scorm_player_url_base, scorm_player_url_query)
+        
         html = self.resource_string("static/html/scormxblock.html")
-        frag = Fragment(html.format(scorm_file=scorm_file, self=self))
+        get_url = self.runtime.handler_url(self, "scorm_get_value")
+        set_url = self.runtime.handler_url(self, "scorm_set_value")
+        frag = Fragment(html.format(self=self, scorm_file=scorm_file, scorm_player_url=scorm_player_url, get_url=get_url, set_url=set_url ))
         frag.add_css(self.resource_string("static/css/scormxblock.css"))
         frag.add_javascript(self.resource_string("static/js/src/scormxblock.js"))
         frag.initialize_js('ScormXBlock')
@@ -108,7 +161,7 @@ class ScormXBlock(XBlock):
 
         # TODO: save the file according to DEFAULT_FILE_STORAGE setting
         # scorm_file should only point to the path where imsmanifest.xml is located
-        # scorm_player will have the index.html, launch.htm location for the JS player
+        # scorm_player will have the index.html, launch.htm, etc. location for the JS player
         if hasattr(request.params['file'], 'file'):
             file = request.params['file'].file
             zip_file = zipfile.ZipFile(file, 'r')
@@ -117,7 +170,7 @@ class ScormXBlock(XBlock):
                 shutil.rmtree(path_to_file)
             zip_file.extractall(path_to_file)
             self.scorm_file = os.path.join(settings.PROFILE_IMAGE_BACKEND['options']['base_url'],
-                                           '{}/index.html'.format(self.location.block_id))
+                                           '{}'.format(self.location.block_id))
 
         return Response(json.dumps({'result': 'success'}), content_type='application/json')
 
