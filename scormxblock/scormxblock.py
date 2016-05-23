@@ -105,7 +105,8 @@ class ScormXBlock(XBlock):
 
     def student_view(self, context=None):
         scheme = 'https' if settings.HTTPS == 'on' else 'http'
-        scorm_file = '{}://{}{}'.format(scheme, settings.ENV_TOKENS.get('LMS_BASE'), self.scorm_file)
+        lms_base = settings.ENV_TOKENS.get('LMS_BASE')
+        scorm_file = '{}://{}{}'.format(scheme, lms_base, self.scorm_file)
         scorm_player_url = ""
 
         if self.scorm_player == SCORM_PKG_INTERNAL:
@@ -113,13 +114,11 @@ class ScormXBlock(XBlock):
         elif self.scorm_player:
             # SSLA: launch.htm?courseId=1&studentName=Caudill,Brian&studentId=1&courseDirectory=courses/SSLA_tryout
             
-            # scorm_player_config = DEFINED_PLAYERS[self.scorm_player]['configuration']
-            # scorm_player_url_base = scorm_player_config['player_html']
-
-            # TODO: temp dummy. specific to SSLA
             player_config = DEFINED_PLAYERS[self.scorm_player]
             scorm_player_url_base = '{}://{}{}'.format(scheme, settings.ENV_TOKENS.get('LMS_BASE'), player_config['location'])
-            # scorm_player_url_base = 'http://local.nyif:8080/{}'.format(player_config['location'])
+            
+            # TODO: temp dummy. specific to SSLA
+            # TODO: define querystring to player in the player "configuration" key
             scorm_player_url_query = ('courseId={course_id}&' 
                                       'studentName={student_name}&'
                                       'studentId={student_id}&'
@@ -132,11 +131,22 @@ class ScormXBlock(XBlock):
             scorm_player_url = '{0}?{1}'.format(scorm_player_url_base, scorm_player_url_query)
         
         html = self.resource_string("static/html/scormxblock.html")
-        get_url = self.runtime.handler_url(self, "scorm_get_value")
-        set_url = self.runtime.handler_url(self, "scorm_set_value")
-        frag = Fragment(html.format(self=self, scorm_file=scorm_file, scorm_player_url=scorm_player_url, get_url=get_url, set_url=set_url ))
+
+        # don't call handlers if student_view is not called from within LMS
+        # (not really a student)
+        if self.runtime.HOSTNAME:
+            get_url = self.runtime.handler_url(self, "scorm_get_value")
+            set_url = self.runtime.handler_url(self, "scorm_set_value")
+        # PreviewModuleSystem (runtime Mixin from Studio) won't have a hostname            
+        else:
+            # preview from Studio may have cross-frame-origin problems so we don't want it 
+            # trying to access any URL
+            get_url = set_url = 'javascript:void(0)'
+
+        frag = Fragment(html.format(self=self, scorm_file=scorm_file, scorm_player_url=scorm_player_url))
         frag.add_css(self.resource_string("static/css/scormxblock.css"))
-        frag.add_javascript(self.resource_string("static/js/src/scormxblock.js"))
+        js = self.resource_string("static/js/src/scormxblock.js") % (get_url, set_url)
+        frag.add_javascript(js)
         frag.initialize_js('ScormXBlock')
         return frag
 

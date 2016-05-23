@@ -1,3 +1,5 @@
+var geturl, seturl, csrftoken;
+
 function ScormXBlock(runtime, element) {
 
   function SCORM_API(){
@@ -72,5 +74,9 @@ function ScormXBlock(runtime, element) {
   $(function ($) {
     API = new SCORM_API();
     console.log("Initial SCORM data...");
+    geturl = "%s";
+    seturl = "%s";
+    csrftoken = $.cookie('csrftoken');
+
   });
 }
