@@ -3,6 +3,7 @@ import os
 import pkg_resources
 import zipfile
 import shutil
+import urllib
 
 from django.conf import settings
 from webob import Response
@@ -45,6 +46,11 @@ class ScormXBlock(XBlock):
         help=_("SCORM player configured in Django settings, or index.html file contained in SCORM package"),
         scope=Scope.settings
     )
+    # this stores latest raw SCORM API data in JSON string
+    raw_scorm_status = String(
+        scope=Scope.user_state,
+        default='{}'
+    )
     lesson_status = String(
         scope=Scope.user_state,
         default='not attempted'
@@ -82,8 +88,11 @@ class ScormXBlock(XBlock):
 
     @property
     def student_name(self):
-        # TODO: dummy 
-        return "Wilson,Bryan"
+        if hasattr(self, "xmodule_runtime"):
+            user = self.xmodule_runtime._services['user'].get_current_user()
+            return user.full_name
+        else:
+            return None
 
     @property
     def course_id(self):
@@ -119,15 +128,11 @@ class ScormXBlock(XBlock):
             
             # TODO: temp dummy. specific to SSLA
             # TODO: define querystring to player in the player "configuration" key
-            scorm_player_url_query = ('courseId={course_id}&' 
-                                      'studentName={student_name}&'
-                                      'studentId={student_id}&'
-                                      'courseDirectory={course_directory}'
-                                      ).format(
-                                      course_id=self.course_id,
-                                      student_name=self.student_name,
-                                      student_id=self.student_id,
-                                      course_directory=self.scorm_file)
+            scorm_player_url_query = urllib.urlencode({'courseId': self.course_id,
+                                      'studentName': self.student_name,
+                                      'studentId': self.student_id,
+                                      'courseDirectory': self.scorm_file,
+                                      })
             scorm_player_url = '{0}?{1}'.format(scorm_player_url_base, scorm_player_url_query)
         
         html = self.resource_string("static/html/scormxblock.html")
@@ -135,8 +140,8 @@ class ScormXBlock(XBlock):
         # don't call handlers if student_view is not called from within LMS
         # (not really a student)
         if self.runtime.HOSTNAME:
-            get_url = self.runtime.handler_url(self, "scorm_get_value")
-            set_url = self.runtime.handler_url(self, "scorm_set_value")
+            get_url = self.runtime.handler_url(self, "get_raw_scorm_status")
+            set_url = self.runtime.handler_url(self, "set_raw_scorm_status")
         # PreviewModuleSystem (runtime Mixin from Studio) won't have a hostname            
         else:
             # preview from Studio may have cross-frame-origin problems so we don't want it 
@@ -184,6 +189,7 @@ class ScormXBlock(XBlock):
 
         return Response(json.dumps({'result': 'success'}), content_type='application/json')
 
+    # if player sends SCORM API JSON directly
     @XBlock.json_handler
     def scorm_get_value(self, data, suffix=''):
         name = data.get('name')
@@ -191,6 +197,7 @@ class ScormXBlock(XBlock):
             return {'value': self.lesson_status}
         return {'value': ''}
 
+    # if player sends SCORM API JSON directly
     @XBlock.json_handler
     def scorm_set_value(self, data, suffix=''):
         context = {'result': 'success'}
@@ -200,8 +207,30 @@ class ScormXBlock(XBlock):
             self.publish_grade()
             context.update({"lesson_score": self.lesson_score})
         if name == 'cmi.core.score.raw':
-            self.lesson_score = int(data.get('value', 0))/100.0
+            self.set_lesson_score(data.get('value',0))
         return context
+
+    # if player POSTS form data including SCORM API JSON data
+    @XBlock.handler
+    def get_raw_scorm_status(self, request, suffix=''):
+        return Response(self.raw_scorm_status, content_type='application/json')
+
+    # if player POSTS form data including SCORM API JSON data
+    @XBlock.handler
+    def set_raw_scorm_status(self, request, suffix=''):
+        data = request.POST['data']
+        self.raw_scorm_status = data
+        scorm_data = json.loads(data)
+        status = scorm_data.get('cmi.core.lesson_status', 'incomplete')
+        if status != 'completed':
+            self.lesson_status = status
+        self.set_lesson_score(scorm_data.get('cmi.core.score.raw', 0))
+        self.publish_grade()
+        
+        return Response(json.dumps({'result': 'success'}), content_type='application/json')
+
+    def set_lesson_score(self, scorm_score):
+        self.lesson_score = int(scorm_score)/100.0
 
     def publish_grade(self):
         if self.lesson_status == 'passed':
