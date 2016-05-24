@@ -148,9 +148,10 @@ class ScormXBlock(XBlock):
             # trying to access any URL
             get_url = set_url = 'javascript:void(0)'
 
-        frag = Fragment(html.format(self=self, scorm_file=scorm_file, scorm_player_url=scorm_player_url))
+        frag = Fragment(html.format(self=self, scorm_player_url=scorm_player_url,
+                                    get_url=get_url, set_url=set_url))
         frag.add_css(self.resource_string("static/css/scormxblock.css"))
-        js = self.resource_string("static/js/src/scormxblock.js") % (get_url, set_url)
+        js = self.resource_string("static/js/src/scormxblock.js")
         frag.add_javascript(js)
         frag.initialize_js('ScormXBlock')
         return frag
@@ -213,6 +214,8 @@ class ScormXBlock(XBlock):
     # if player POSTS form data including SCORM API JSON data
     @XBlock.handler
     def get_raw_scorm_status(self, request, suffix=''):
+
+        # TODO: handle errors
         return Response(self.raw_scorm_status, content_type='application/json')
 
     # if player POSTS form data including SCORM API JSON data
@@ -227,6 +230,7 @@ class ScormXBlock(XBlock):
         self.set_lesson_score(scorm_data.get('cmi.core.score.raw', 0))
         self.publish_grade()
         
+        # TODO: handle errors
         return Response(json.dumps({'result': 'success'}), content_type='application/json')
 
     def set_lesson_score(self, scorm_score):

@@ -1,4 +1,7 @@
 <div class="scormxblock_block">
     <p>(<span class="lesson_score">{self.lesson_score}</span>/{self.weight} points)</p>
-    <iframe src="{scorm_player_url}" width="{self.display_width}" height="{self.display_height}"></iframe>
+    <iframe src="{scorm_player_url}" width="{self.display_width}" height="{self.display_height}" 
+    data-display_type="{self.display_type}" data-display_width="{self.display_width}"
+    data-display_height="{self.display_height}"
+    data-get_url="{get_url}" data-set_url="{set_url}"></iframe>
 </div>
