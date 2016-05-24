@@ -148,8 +148,15 @@ class ScormXBlock(XBlock):
             # trying to access any URL
             get_url = set_url = 'javascript:void(0)'
 
+
+        # if display type is popup, don't use the full window width for the host iframe
+        iframe_width = self.display_type=='popup' and 800 or self.display_width;
+        iframe_height = self.display_type=='popup' and 400 or self.display_height;
+
+
         frag = Fragment(html.format(self=self, scorm_player_url=scorm_player_url,
-                                    get_url=get_url, set_url=set_url))
+                                    get_url=get_url, set_url=set_url, 
+                                    iframe_width=iframe_width, iframe_height=iframe_height))
         frag.add_css(self.resource_string("static/css/scormxblock.css"))
         js = self.resource_string("static/js/src/scormxblock.js")
         frag.add_javascript(js)
