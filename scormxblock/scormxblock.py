@@ -118,7 +118,7 @@ class ScormXBlock(XBlock):
         scorm_file = '{}://{}{}'.format(scheme, lms_base, self.scorm_file)
         scorm_player_url = ""
 
-        if self.scorm_player == SCORM_PKG_INTERNAL:
+        if self.scorm_player == 'SCORM_PKG_INTERNAL':
             scorm_player_url = '{0}/index.html'.format(scorm_file) 
         elif self.scorm_player:
             # SSLA: launch.htm?courseId=1&studentName=Caudill,Brian&studentId=1&courseDirectory=courses/SSLA_tryout
