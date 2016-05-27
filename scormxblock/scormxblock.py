@@ -4,8 +4,10 @@ import pkg_resources
 import zipfile
 import shutil
 import urllib
+import cgi
 
 from django.conf import settings
+from django.core.files.storage import default_storage
 from webob import Response
 
 from xblock.core import XBlock
@@ -19,7 +21,7 @@ from mako.template import Template as MakoTemplate
 _ = lambda text: text
 
 
-SCORM_PKG_INTERNAL = {"value": "SCORM_PKG_INTERNAL", "display_name": "index.html in SCORM package"}
+SCORM_PKG_INTERNAL = {"value": "SCORM_PKG_INTERNAL", "display_name": "Internal Player: index.html in SCORM package"}
 
 
 DEFINED_PLAYERS = settings.ENV_TOKENS.get("SCORM_PLAYER_BACKENDS", {})
@@ -36,8 +38,15 @@ class ScormXBlock(XBlock):
         default="Scorm",
         scope=Scope.settings
     )
+    description = String(
+        display_name=_("Description"),
+        help=_("Brief description of the SCORM modules will be displayed above the player. Can contain HTML."),
+        default="",
+        scope=Scope.settings
+    )
     scorm_file = String(
         display_name=_("Upload scorm file (.zip)"),
+        help=_('Upload a new SCORM package.'),
         scope=Scope.settings
     )
     scorm_player = String(
@@ -61,6 +70,7 @@ class ScormXBlock(XBlock):
     )
     weight = Integer(
         default=1,
+        help=_('Point weight of SCORM module in course'),
         scope=Scope.settings
     )
     display_type = String(
@@ -71,11 +81,21 @@ class ScormXBlock(XBlock):
         scope=Scope.settings
     )
     display_width = Integer(
+        display_name =_("Display Width (px)"),
+        help=_('Width of iframe or popup window'),
         default=820,
         scope=Scope.settings
     )
     display_height = Integer(
+        display_name =_("Display Height (px)"),
+        help=_('Height of iframe or popup window'),
         default=450,
+        scope=Scope.settings
+    )
+    player_configuration = String(
+        display_name =_("Player Configuration"),
+        default='',
+        help=_("JSON object string with overrides to be passed to selected SCORM player.  These will be exposed as data attributes on the host iframe. Attributes can be any.  'Internal player' will always check this field for an 'initial_html' attribute to override index.html as the initial page."),
         scope=Scope.settings
     )
 
@@ -115,25 +135,26 @@ class ScormXBlock(XBlock):
     def student_view(self, context=None):
         scheme = 'https' if settings.HTTPS == 'on' else 'http'
         lms_base = settings.ENV_TOKENS.get('LMS_BASE')
-        scorm_file = '{}://{}{}'.format(scheme, lms_base, self.scorm_file)
         scorm_player_url = ""
 
         if self.scorm_player == 'SCORM_PKG_INTERNAL':
-            scorm_player_url = '{0}/index.html'.format(scorm_file) 
+            # TODO: support initial filename other than index.html for internal players
+            scorm_player_url = '{}://{}{}/index.html'.format(scheme, lms_base, self.scorm_file) 
         elif self.scorm_player:
             # SSLA: launch.htm?courseId=1&studentName=Caudill,Brian&studentId=1&courseDirectory=courses/SSLA_tryout
             
             player_config = DEFINED_PLAYERS[self.scorm_player]
-            scorm_player_url_base = '{}://{}{}'.format(scheme, settings.ENV_TOKENS.get('LMS_BASE'), player_config['location'])
+            scorm_player_url_base = '{}://{}{}'.format(scheme, lms_base, player_config['location'])
             
             # TODO: temp dummy. specific to SSLA
             # TODO: define querystring to player in the player "configuration" key
-            scorm_player_url_query = urllib.urlencode({'courseId': self.course_id,
-                                      'studentName': self.student_name,
-                                      'studentId': self.student_id,
-                                      'courseDirectory': self.scorm_file,
-                                      })
-            scorm_player_url = '{0}?{1}'.format(scorm_player_url_base, scorm_player_url_query)
+            # scorm_player_url_query = urllib.urlencode({'courseId': self.course_id,
+            #                           'studentName': self.student_name,
+            #                           'studentId': self.student_id,
+            #                           'courseDirectory': self.scorm_file,
+            #                           })
+            # scorm_player_url = '{0}?{1}'.format(scorm_player_url_base, scorm_player_url_query)
+            scorm_player_url = scorm_player_url_base
         
         html = self.resource_string("static/html/scormxblock.html")
 
@@ -146,17 +167,25 @@ class ScormXBlock(XBlock):
         else:
             # preview from Studio may have cross-frame-origin problems so we don't want it 
             # trying to access any URL
-            get_url = set_url = 'javascript:void(0)'
+            get_url = set_url = '#'
 
 
         # if display type is popup, don't use the full window width for the host iframe
         iframe_width = self.display_type=='popup' and 800 or self.display_width;
         iframe_height = self.display_type=='popup' and 400 or self.display_height;
 
+        try:
+            player_config = json.loads(self.player_configuration)
+        except ValueError:
+            player_config = {}
 
-        frag = Fragment(html.format(self=self, scorm_player_url=scorm_player_url,
-                                    get_url=get_url, set_url=set_url, 
-                                    iframe_width=iframe_width, iframe_height=iframe_height))
+        frag = Fragment()
+        frag.add_content(MakoTemplate(text=html.format(self=self, scorm_player_url=scorm_player_url,
+                                                       get_url=get_url, set_url=set_url, 
+                                                       iframe_width=iframe_width, iframe_height=iframe_height,
+                                                       player_config=player_config, 
+                                                       scorm_file=cgi.escape(self.scorm_file, quote=True))
+                                    ).render_unicode(**context))
         frag.add_css(self.resource_string("static/css/scormxblock.css"))
         js = self.resource_string("static/js/src/scormxblock.js")
         frag.add_javascript(js)
@@ -176,24 +205,34 @@ class ScormXBlock(XBlock):
     @XBlock.handler
     def studio_submit(self, request, suffix=''):
         self.display_name = request.params['display_name']
+        self.description = request.params['description']
         self.weight = request.params['weight']
         self.display_width = request.params['display_width']
         self.display_height = request.params['display_height']
         self.display_type = request.params['display_type']
         self.scorm_player = request.params['scorm_player']
 
-        # TODO: save the file according to DEFAULT_FILE_STORAGE setting
+        try:
+            json.loads(request.params['player_configuration'])  # just validation
+            self.player_configuration = request.params['player_configuration']
+        except ValueError, e:
+            return Response(json.dumps({'result': 'failure', 'error': 'Invalid JSON in Player Configuration'.format(e)}), content_type='application/json')
+
         # scorm_file should only point to the path where imsmanifest.xml is located
         # scorm_player will have the index.html, launch.htm, etc. location for the JS player
         if hasattr(request.params['file'], 'file'):
             file = request.params['file'].file
             zip_file = zipfile.ZipFile(file, 'r')
-            path_to_file = os.path.join(settings.PROFILE_IMAGE_BACKEND['options']['location'], self.location.block_id)
-            if os.path.exists(path_to_file):
-                shutil.rmtree(path_to_file)
-            zip_file.extractall(path_to_file)
-            self.scorm_file = os.path.join(settings.PROFILE_IMAGE_BACKEND['options']['base_url'],
-                                           '{}'.format(self.location.block_id))
+            storage = default_storage
+            scorm_storage = settings.ENV_TOKENS.get("SCORM_PKG_STORAGE_DIR", "scormpackages")
+            path_to_file = os.path.join(scorm_storage, self.location.block_id)
+            if storage.exists(path_to_file):
+                try:
+                    storage.delete(path_to_file)
+                except OSError:
+                    shutil.rmtree(os.path.join(storage.location, path_to_file))
+            zip_file.extractall(os.path.join(storage.location, path_to_file))
+            self.scorm_file = storage.url(path_to_file)
 
         return Response(json.dumps({'result': 'success'}), content_type='application/json')
 

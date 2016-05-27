@@ -1,7 +1,28 @@
+<%!
+import cgi
+#import HTMLParser
+%>
+<%  
+	# html_parser = HTMLParser.HTMLParser()
+	#description = html_parser.unescape('{self.description}')
+	player_config_attrs = ''
+	
+%>	
+
+<% 
+for item in list({player_config}.items()):
+    player_config_attrs += 'data-{{}}="{{}}" '.format(item[0], cgi.escape(item[1], quote=True))
+%>
+
 <div class="scormxblock_block">
     <p>(<span class="lesson_score">{self.lesson_score}</span>/{self.weight} points)</p>
+    <div>{self.description}</div>
     <iframe src="{scorm_player_url}" width="{iframe_width}" height="{iframe_height}" 
     data-display_type="{self.display_type}" data-display_width="{self.display_width}"
     data-display_height="{self.display_height}"
-    data-get_url="{get_url}" data-set_url="{set_url}"></iframe>
+    data-get_url="{get_url}" data-set_url="{set_url}"
+    data-course_location="{scorm_file}" data-course_id="{self.course_id}"
+    data-student_name="{self.student_name}" data-student_id="{self.student_id}"
+    ${{player_config_attrs}}
+    ></iframe>
 </div>
