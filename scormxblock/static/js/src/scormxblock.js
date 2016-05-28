@@ -74,7 +74,15 @@ function ScormXBlock(runtime, element) {
   $(function ($) {
     API = new SCORM_API();
     console.log("Initial SCORM data...");
-    csrftoken = $.cookie('csrftoken');
 
+    //post message with data to player window
+    //TODO: make sure we have the right iframe
+    frame = $('iframe');
+    frame.on('load', function(){
+      playerWin = this.contentWindow;
+      data = frame.data();
+      data.csrftoken = $.cookie('csrftoken');
+      playerWin.postMessage(data, '*');
+    });
   });
 }

@@ -139,10 +139,9 @@ class ScormXBlock(XBlock):
 
         if self.scorm_player == 'SCORM_PKG_INTERNAL':
             # TODO: support initial filename other than index.html for internal players
-            scorm_player_url = '{}://{}{}/index.html'.format(scheme, lms_base, self.scorm_file) 
+            scorm_player_url = '{}://{}{}'.format(scheme, lms_base, self.scorm_file)
         elif self.scorm_player:
             # SSLA: launch.htm?courseId=1&studentName=Caudill,Brian&studentId=1&courseDirectory=courses/SSLA_tryout
-            
             player_config = DEFINED_PLAYERS[self.scorm_player]
             scorm_player_url_base = '{}://{}{}'.format(scheme, lms_base, player_config['location'])
             
@@ -185,7 +184,7 @@ class ScormXBlock(XBlock):
                                                        iframe_width=iframe_width, iframe_height=iframe_height,
                                                        player_config=player_config, 
                                                        scorm_file=cgi.escape(self.scorm_file, quote=True))
-                                    ).render_unicode(**context))
+                                     ).render_unicode())
         frag.add_css(self.resource_string("static/css/scormxblock.css"))
         js = self.resource_string("static/js/src/scormxblock.js")
         frag.add_javascript(js)
