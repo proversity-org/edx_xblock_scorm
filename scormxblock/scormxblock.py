@@ -143,18 +143,8 @@ class ScormXBlock(XBlock):
         elif self.scorm_player:
             # SSLA: launch.htm?courseId=1&studentName=Caudill,Brian&studentId=1&courseDirectory=courses/SSLA_tryout
             player_config = DEFINED_PLAYERS[self.scorm_player]
-            scorm_player_url_base = '{}://{}{}'.format(scheme, lms_base, player_config['location'])
-            
-            # TODO: temp dummy. specific to SSLA
-            # TODO: define querystring to player in the player "configuration" key
-            # scorm_player_url_query = urllib.urlencode({'courseId': self.course_id,
-            #                           'studentName': self.student_name,
-            #                           'studentId': self.student_id,
-            #                           'courseDirectory': self.scorm_file,
-            #                           })
-            # scorm_player_url = '{0}?{1}'.format(scorm_player_url_base, scorm_player_url_query)
-            scorm_player_url = scorm_player_url_base
-        
+            scorm_player_url = '{}://{}{}'.format(scheme, lms_base, player_config['location'])            
+                    
         html = self.resource_string("static/html/scormxblock.html")
 
         # don't call handlers if student_view is not called from within LMS
