@@ -4,6 +4,7 @@ import pkg_resources
 import zipfile
 import shutil
 import urllib
+import tempfile
 import cgi
 
 from django.conf import settings
@@ -95,7 +96,7 @@ class ScormXBlock(XBlock):
     player_configuration = String(
         display_name =_("Player Configuration"),
         default='',
-        help=_("JSON object string with overrides to be passed to selected SCORM player.  These will be exposed as data attributes on the host iframe. Attributes can be any.  'Internal player' will always check this field for an 'initial_html' attribute to override index.html as the initial page."),
+        help=_("JSON object string with overrides to be passed to selected SCORM player.  These will be exposed as data attributes on the host iframe and sent in a window.postMessage to the iframe's content window. Attributes can be any.  'Internal player' will always check this field for an 'initial_html' attribute to override index.html as the initial page."),
         scope=Scope.settings
     )
 
@@ -173,7 +174,7 @@ class ScormXBlock(XBlock):
                                                        get_url=get_url, set_url=set_url, 
                                                        iframe_width=iframe_width, iframe_height=iframe_height,
                                                        player_config=player_config, 
-                                                       scorm_file=cgi.escape(self.scorm_file, quote=True))
+                                                       scorm_file=self.scorm_file)
                                      ).render_unicode())
         frag.add_css(self.resource_string("static/css/scormxblock.css"))
         js = self.resource_string("static/js/src/scormxblock.js")
@@ -209,18 +210,41 @@ class ScormXBlock(XBlock):
 
         # scorm_file should only point to the path where imsmanifest.xml is located
         # scorm_player will have the index.html, launch.htm, etc. location for the JS player
+        # TODO: the below could fail after deleting all of the contents from the storage. to handle
         if hasattr(request.params['file'], 'file'):
             file = request.params['file'].file
             zip_file = zipfile.ZipFile(file, 'r')
             storage = default_storage
+
             scorm_storage = settings.ENV_TOKENS.get("SCORM_PKG_STORAGE_DIR", "scormpackages")
             path_to_file = os.path.join(scorm_storage, self.location.block_id)
-            if storage.exists(path_to_file):
+
+            if storage.exists(os.path.join(path_to_file, 'imsmanifest.xml')):
                 try:
-                    storage.delete(path_to_file)
-                except OSError:
                     shutil.rmtree(os.path.join(storage.location, path_to_file))
-            zip_file.extractall(os.path.join(storage.location, path_to_file))
+                except OSError:
+                    # TODO: for now we are going to assume this means it's stored on S3 if not local
+                    try:
+                        for key in storage.bucket.list(prefix=path_to_file):
+                            key.delete()
+                    except AttributeError:
+                        return Response(json.dumps({'result': 'failure', 'error': 'Unsupported storage. Unable to overwrite old SCORM package contents'}), content_type='application/json')
+
+            tempdir = tempfile.mkdtemp()
+            zip_file.extractall(tempdir)
+
+            to_store = []
+            for (dirpath, dirnames, files) in os.walk(tempdir):
+                for f in files:
+                    to_store.append(os.path.join(os.path.abspath(dirpath), f))
+
+            # TODO: look at optimization of file handling, save
+            for f in to_store:
+                f_path = f.replace(tempdir, '')
+                with open(f, 'rb+') as fh:
+                    storage.save('{}{}'.format(path_to_file, f_path), fh)
+            shutil.rmtree(tempdir)
+                    
             self.scorm_file = storage.url(path_to_file)
 
         return Response(json.dumps({'result': 'success'}), content_type='application/json')
