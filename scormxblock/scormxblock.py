@@ -3,9 +3,7 @@ import os
 import pkg_resources
 import zipfile
 import shutil
-import urllib
 import tempfile
-import cgi
 
 from django.conf import settings
 from django.core.files.storage import default_storage
@@ -144,7 +142,11 @@ class ScormXBlock(XBlock):
         elif self.scorm_player:
             # SSLA: launch.htm?courseId=1&studentName=Caudill,Brian&studentId=1&courseDirectory=courses/SSLA_tryout
             player_config = DEFINED_PLAYERS[self.scorm_player]
-            scorm_player_url = '{}://{}{}'.format(scheme, lms_base, player_config['location'])            
+            player  = player_config['location']
+            if '://' in player:
+                scorm_player_url = player
+            else:    
+                scorm_player_url = '{}://{}{}'.format(scheme, lms_base, player)
                     
         html = self.resource_string("static/html/scormxblock.html")
 
@@ -155,8 +157,7 @@ class ScormXBlock(XBlock):
             set_url = self.runtime.handler_url(self, "set_raw_scorm_status")
         # PreviewModuleSystem (runtime Mixin from Studio) won't have a hostname            
         else:
-            # preview from Studio may have cross-frame-origin problems so we don't want it 
-            # trying to access any URL
+            # we don't want to get/set SCORM status from preview
             get_url = set_url = '#'
 
 
@@ -244,8 +245,11 @@ class ScormXBlock(XBlock):
                 with open(f, 'rb+') as fh:
                     storage.save('{}{}'.format(path_to_file, f_path), fh)
             shutil.rmtree(tempdir)
-                    
-            self.scorm_file = storage.url(path_to_file)
+
+            # strip querystrings
+            url = storage.url(path_to_file)
+            self.scorm_file = url[:url.find('?')]
+        import pdb; pdb.set_trace()
 
         return Response(json.dumps({'result': 'success'}), content_type='application/json')
 
