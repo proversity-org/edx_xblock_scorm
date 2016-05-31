@@ -69,7 +69,7 @@ class ScormXBlock(XBlock):
     )
     weight = Integer(
         default=1,
-        help=_('Point weight of SCORM module in course'),
+        help=_('SCORM block\'s problem weight in the course, in points.  If not graded, set to 0'),
         scope=Scope.settings
     )
     display_type = String(
@@ -153,8 +153,8 @@ class ScormXBlock(XBlock):
         # don't call handlers if student_view is not called from within LMS
         # (not really a student)
         if self.runtime.HOSTNAME:
-            get_url = self.runtime.handler_url(self, "get_raw_scorm_status")
-            set_url = self.runtime.handler_url(self, "set_raw_scorm_status")
+            get_url = '{}://{}{}'.format(scheme, lms_base, self.runtime.handler_url(self, "get_raw_scorm_status"))
+            set_url = '{}://{}{}'.format(scheme, lms_base, self.runtime.handler_url(self, "set_raw_scorm_status"))
         # PreviewModuleSystem (runtime Mixin from Studio) won't have a hostname            
         else:
             # we don't want to get/set SCORM status from preview
@@ -203,11 +203,12 @@ class ScormXBlock(XBlock):
         self.display_type = request.params['display_type']
         self.scorm_player = request.params['scorm_player']
 
-        try:
-            json.loads(request.params['player_configuration'])  # just validation
-            self.player_configuration = request.params['player_configuration']
-        except ValueError, e:
-            return Response(json.dumps({'result': 'failure', 'error': 'Invalid JSON in Player Configuration'.format(e)}), content_type='application/json')
+        if request.params['player_configuration']:
+            try:
+                json.loads(request.params['player_configuration'])  # just validation
+                self.player_configuration = request.params['player_configuration']
+            except ValueError, e:
+                return Response(json.dumps({'result': 'failure', 'error': 'Invalid JSON in Player Configuration'.format(e)}), content_type='application/json')
 
         # scorm_file should only point to the path where imsmanifest.xml is located
         # scorm_player will have the index.html, launch.htm, etc. location for the JS player
@@ -248,8 +249,7 @@ class ScormXBlock(XBlock):
 
             # strip querystrings
             url = storage.url(path_to_file)
-            self.scorm_file = url[:url.find('?')]
-        import pdb; pdb.set_trace()
+            self.scorm_file = '?' in url and url[:url.find('?')] or url
 
         return Response(json.dumps({'result': 'success'}), content_type='application/json')
 
@@ -277,9 +277,18 @@ class ScormXBlock(XBlock):
     # if player POSTS form data including SCORM API JSON data
     @XBlock.handler
     def get_raw_scorm_status(self, request, suffix=''):
-
         # TODO: handle errors
-        return Response(self.raw_scorm_status, content_type='application/json')
+        # we will set cmi.core.credit to 'credit' as long as weight>0
+        credit = self.weight > 0 and 'credit' or 'no-credit'
+        scorm_status = json.loads(self.raw_scorm_status)
+        scos = scorm_status['scos']
+        for sco in scos.keys():
+            sco = scos[sco]['data']
+            sco['cmi.core.credit'] = credit
+        
+        raw_scorm_status = json.dumps(scorm_status)
+
+        return Response(raw_scorm_status, content_type='application/json')
 
     # if player POSTS form data including SCORM API JSON data
     @XBlock.handler
@@ -287,36 +296,40 @@ class ScormXBlock(XBlock):
         data = request.POST['data']
         self.raw_scorm_status = data
         scorm_data = json.loads(data)
-        status = scorm_data.get('cmi.core.lesson_status', 'incomplete')
-        if status != 'completed':
-            self.lesson_status = status
-        self.set_lesson_score(scorm_data.get('cmi.core.score.raw', 0))
-        self.publish_grade()
+        self.lesson_status = scorm_data.get('status', 'not attempted')
+        scos = scorm_data['scos']
+        self.set_lesson_score(scos)
+        self.publish_grade(scos)
         
         # TODO: handle errors
         return Response(json.dumps({'result': 'success'}), content_type='application/json')
 
-    def set_lesson_score(self, scorm_score):
-        self.lesson_score = int(scorm_score)/100.0
+    def set_lesson_score(self, scos):
+        total_score = 0
+        for sco in scos.keys():
+            sco = scos[sco]['data']
+            try:
+                total_score += int(sco.get('cmi.core.score.raw', 0))
+            except ValueError:
+                pass
+        self.lesson_score = total_score
 
-    def publish_grade(self):
-        if self.lesson_status == 'passed':
+    def publish_grade(self, scos):
+        if self.lesson_status in ('passed', 'failed'):
+            total_max_score = 0
+            for sco in scos.keys():
+                sco = scos[sco]['data']
+                try:
+                    total_max_score += int(sco.get('cmi.core.score.max', 100))
+                except ValueError:
+                    pass
             self.runtime.publish(
                 self,
                 'grade',
                 {
-                    'value': self.lesson_score,
+                    'value': (self.lesson_score / total_max_score) * self.weight,
                     'max_value': self.weight,
                 })
-        if self.lesson_status == 'failed':
-            self.runtime.publish(
-                self,
-                'grade',
-                {
-                    'value': 0,
-                    'max_value': self.weight,
-                })
-            self.lesson_score = 0
 
     @staticmethod
     def workbench_scenarios():
