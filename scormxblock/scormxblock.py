@@ -290,25 +290,31 @@ class ScormXBlock(XBlock):
         status[key] = val
         self.raw_scorm_status = json.dumps(status)
 
-    def _scos_set_values(self, key, val):
+    def _scos_set_values(self, key, val, overwrite=False):
         """
         sets a value for a key on all scos
         returns new full scorm data
         """
         scos = self._get_all_scos()
         for sco in scos:
-            scos[sco][key] = val
+            if not scos[sco].get('key') or (scos[sco].get('key') and overwrite):
+                scos[sco][key] = val
         self._status_serialize_key('scos', scos)
 
     def _init_scos(self):
-        if not self.scorm_initialized:
-            # set all scos lesson status to 'not attempted'
-            # set credit/no-credit on all scos
+        # set all scos lesson status to 'not attempted'
+        # set credit/no-credit on all scos
 
-            credit = self.weight > 0 and 'credit' or 'no-credit'
-            self._scos_set_values('cmi.core.credit', credit)
-            self._scos_set_values('cmi.core.lesson_status', 'not attempted')
-            self.scorm_initialized = True
+        credit = self.weight > 0 and 'credit' or 'no-credit'
+        self._scos_set_values('cmi.core.credit', credit)
+        self._scos_set_values('cmi.core.lesson_status', 'not attempted', True)
+
+        # set a default max score if none is available
+        # at initialization.  KESDEE publisher at least will end up 
+        # alway setting max to the users previous actual raw score if we
+        # don't do this
+        self._scos_set_values('cmi.core.score.max', DEFAULT_SCO_MAX_SCORE)
+        self.scorm_initialized = True
 
     # if player POSTS form data including SCORM API JSON data
     @XBlock.handler
@@ -336,14 +342,15 @@ class ScormXBlock(XBlock):
         """
         roll up a total lesson score from sum of SCO scores
         """
-        total_score = 0
+        total_score = total_max_score = 0
         for sco in scos.keys():
             sco = scos[sco]['data']
             try:
                 total_score += int(sco.get('cmi.core.score.raw', 0))
+                total_max_score += int(sco.get('cmi.core.score.max', 100))
             except ValueError:
                 pass
-        self.lesson_score = total_score
+        self.lesson_score = float(total_score)/float(total_max_score)
 
     def publish_grade(self, scos):
         """
@@ -365,7 +372,7 @@ class ScormXBlock(XBlock):
                 self,
                 'grade',
                 {
-                    'value': (float(self.lesson_score) / float(total_max_score)) * self.weight,
+                    'value': self.lesson_score * self.weight,
                     'max_value': self.weight,
                 })
 
