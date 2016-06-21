@@ -342,15 +342,14 @@ class ScormXBlock(XBlock):
         """
         roll up a total lesson score from sum of SCO scores
         """
-        total_score = total_max_score = 0
+        total_score = 0
         for sco in scos.keys():
             sco = scos[sco]['data']
             try:
                 total_score += int(sco.get('cmi.core.score.raw', 0))
-                total_max_score += int(sco.get('cmi.core.score.max', 100))
             except ValueError:
                 pass
-        self.lesson_score = float(total_score)/float(total_max_score)
+        self.lesson_score = total_score
 
     def publish_grade(self, scos):
         """
@@ -372,7 +371,7 @@ class ScormXBlock(XBlock):
                 self,
                 'grade',
                 {
-                    'value': self.lesson_score * self.weight,
+                    'value': (float(self.lesson_score) / float(total_max_score)) * self.weight,
                     'max_value': self.weight,
                 })
 
