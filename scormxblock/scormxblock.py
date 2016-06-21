@@ -24,7 +24,7 @@ SCORM_PKG_INTERNAL = {"value": "SCORM_PKG_INTERNAL", "display_name": "Internal P
 
 
 DEFINED_PLAYERS = settings.ENV_TOKENS.get("SCORM_PLAYER_BACKENDS", {})
-
+DEFAULT_SCO_MAX_SCORE = 100
 
 
 class ScormXBlock(XBlock):
@@ -354,7 +354,9 @@ class ScormXBlock(XBlock):
             for sco in scos.keys():
                 sco = scos[sco]['data']
                 try:
-                    total_max_score += int(sco.get('cmi.core.score.max', 100))
+                    sco_max = sco.get('cmi.core.score.max', DEFAULT_SCO_MAX_SCORE)
+                    sco_max = sco_max and sco_max or DEFAULT_SCO_MAX_SCORE
+                    total_max_score += int(sco_max)
                 except ValueError:
                     pass
 
