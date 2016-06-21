@@ -10,7 +10,7 @@ from django.core.files.storage import default_storage
 from webob import Response
 
 from xblock.core import XBlock
-from xblock.fields import Scope, String, Integer
+from xblock.fields import Scope, String, Integer, Boolean
 from xblock.fragment import Fragment
 
 from mako.template import Template as MakoTemplate
@@ -58,6 +58,10 @@ class ScormXBlock(XBlock):
     raw_scorm_status = String(
         scope=Scope.user_state,
         default='{}'
+    )
+    scorm_initialized = Boolean(
+        scope=Scope.user_state,
+        default=False
     )
     lesson_status = String(
         scope=Scope.user_state,
@@ -274,37 +278,64 @@ class ScormXBlock(XBlock):
             self.set_lesson_score(data.get('value',0))
         return context
 
+    def _get_all_scos(self):
+        return json.loads(self.raw_scorm_status).get('scos', None)
+
+    def _status_serialize_key(self, key, val):
+        """
+        update value in JSON serialized raw_scorm_status
+        passing a string key and a deserialized object
+        """
+        status = json.loads(self.raw_scorm_status)
+        status[key] = val
+        self.raw_scorm_status = json.dumps(status)
+
+    def _scos_set_values(self, key, val):
+        """
+        sets a value for a key on all scos
+        returns new full scorm data
+        """
+        scos = self._get_all_scos()
+        for sco in scos:
+            scos[sco][key] = val
+        self._status_serialize_key('scos', scos)
+
+    def _init_scos(self):
+        if not self.scorm_initialized:
+            # set all scos lesson status to 'not attempted'
+            # set credit/no-credit on all scos
+
+            credit = self.weight > 0 and 'credit' or 'no-credit'
+            self._scos_set_values('cmi.core.credit', credit)
+            self._scos_set_values('cmi.core.lesson_status', 'not attempted')
+            self.scorm_initialized = True
+
     # if player POSTS form data including SCORM API JSON data
     @XBlock.handler
     def get_raw_scorm_status(self, request, suffix=''):
         # TODO: handle errors
-        # we will set cmi.core.credit to 'credit' as long as weight>0
-        credit = self.weight > 0 and 'credit' or 'no-credit'
-        scorm_status = json.loads(self.raw_scorm_status)
-        scos = scorm_status['scos']
-        for sco in scos.keys():
-            sco = scos[sco]['data']
-            sco['cmi.core.credit'] = credit
-        
-        raw_scorm_status = json.dumps(scorm_status)
-
-        return Response(raw_scorm_status, content_type='application/json')
+        return Response(self.raw_scorm_status, content_type='application/json')
 
     # if player POSTS form data including SCORM API JSON data
     @XBlock.handler
     def set_raw_scorm_status(self, request, suffix=''):
         data = request.POST['data']
         self.raw_scorm_status = data
-        scorm_data = json.loads(data)
+        if not self.scorm_initialized:
+            self._init_scos()
+        scorm_data = json.loads(self.raw_scorm_status)
         self.lesson_status = scorm_data.get('status', 'not attempted')
         scos = scorm_data['scos']
         self.set_lesson_score(scos)
         self.publish_grade(scos)
         
         # TODO: handle errors
-        return Response(json.dumps({'result': 'success'}), content_type='application/json')
+        return Response(json.dumps(self.raw_scorm_status), content_type='application/json')
 
     def set_lesson_score(self, scos):
+        """
+        roll up a total lesson score from sum of SCO scores
+        """
         total_score = 0
         for sco in scos.keys():
             sco = scos[sco]['data']
@@ -315,6 +346,9 @@ class ScormXBlock(XBlock):
         self.lesson_score = total_score
 
     def publish_grade(self, scos):
+        """
+        if lesson is complete with pass or fail, publish grade in LMS
+        """
         if self.lesson_status in ('passed', 'failed'):
             total_max_score = 0
             for sco in scos.keys():
@@ -323,11 +357,13 @@ class ScormXBlock(XBlock):
                     total_max_score += int(sco.get('cmi.core.score.max', 100))
                 except ValueError:
                     pass
+
+            # translate the internal score as a percentage of block's weight
             self.runtime.publish(
                 self,
                 'grade',
                 {
-                    'value': (self.lesson_score / total_max_score) * self.weight,
+                    'value': (float(self.lesson_score) / float(total_max_score)) * self.weight,
                     'max_value': self.weight,
                 })
 
