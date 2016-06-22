@@ -35,7 +35,7 @@ class ScormXBlock(XBlock):
     display_name = String(
         display_name=_("Display Name"),
         help=_("Display name for this module"),
-        default="Scorm",
+        default="SCORM",
         scope=Scope.settings
     )
     description = String(
