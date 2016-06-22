@@ -272,10 +272,10 @@ class ScormXBlock(XBlock):
         name = data.get('name')
         if name == 'cmi.core.lesson_status' and data.get('value') != 'completed':
             self.lesson_status = data.get('value')
-            self.publish_grade()
+            self._publish_grade()
             context.update({"lesson_score": self.lesson_score})
         if name == 'cmi.core.score.raw':
-            self.set_lesson_score(data.get('value',0))
+            self._set_lesson_score(data.get('value',0))
         return context
 
     def _get_all_scos(self):
@@ -292,56 +292,66 @@ class ScormXBlock(XBlock):
 
     def _scos_set_values(self, key, val, overwrite=False):
         """
-        sets a value for a key on all scos
-        returns new full scorm data
+        set a value for a key on all scos
+        return new full raw scorm data
         """
         scos = self._get_all_scos()
-        for sco in scos:
-            if not scos[sco].get('key') or (scos[sco].get('key') and overwrite):
-                scos[sco][key] = val
-        self._status_serialize_key('scos', scos)
+        if scos:
+            for sco in scos:
+                if not scos[sco].get('key') or (scos[sco].get('key') and overwrite):
+                    scos[sco][key] = val
+            self._status_serialize_key('scos', scos)
 
     def _init_scos(self):
+        """
+        initialize all SCOs with proper credit and status values in case 
+        content package does not do this correctly
+        """
+        
         # set all scos lesson status to 'not attempted'
         # set credit/no-credit on all scos
-
         credit = self.weight > 0 and 'credit' or 'no-credit'
         self._scos_set_values('cmi.core.credit', credit)
         self._scos_set_values('cmi.core.lesson_status', 'not attempted', True)
-
-        # set a default max score if none is available
-        # at initialization.  KESDEE publisher at least will end up 
-        # alway setting max to the users previous actual raw score if we
-        # don't do this
-        self._scos_set_values('cmi.core.score.max', DEFAULT_SCO_MAX_SCORE)
         self.scorm_initialized = True
 
-    # if player POSTS form data including SCORM API JSON data
     @XBlock.handler
     def get_raw_scorm_status(self, request, suffix=''):
+        """ 
+        retrieve JSON SCORM API status as stored by SSLA player (or potentially others)
+        """
         # TODO: handle errors
+        # TODO: this is specific to SSLA player at this point.  evaluate for broader use case
         return Response(self.raw_scorm_status, content_type='application/json')
 
-    # if player POSTS form data including SCORM API JSON data
     @XBlock.handler
     def set_raw_scorm_status(self, request, suffix=''):
+        """
+        store JSON SCORM API status from SSLA player (or potentially others)
+        """
+        # TODO: this is specific to SSLA player at this point.  evaluate for broader use case
         data = request.POST['data']
         self.raw_scorm_status = data
         if not self.scorm_initialized:
             self._init_scos()
         scorm_data = json.loads(self.raw_scorm_status)
         self.lesson_status = scorm_data.get('status', 'not attempted')
-        scos = scorm_data['scos']
-        self.set_lesson_score(scos)
-        self.publish_grade(scos)
+        scos = scorm_data.get('scos')
+        if scos:
+            self._set_lesson_score(scos)
+            self._publish_grade(scos)
         
         # TODO: handle errors
         return Response(json.dumps(self.raw_scorm_status), content_type='application/json')
 
-    def set_lesson_score(self, scos):
+    def _set_lesson_score(self, scos):
         """
-        roll up a total lesson score from sum of SCO scores
+        roll up a total lesson score from an average of SCO scores
         """
+        # note SCORM 2004+ supports complex weighting of scores from multiple SCOs
+        # see http://scorm.com/blog/2009/10/score-rollup-in-scorm-1-2-theres-no-silver-bullet/
+        # For now we will weight each SCO equally and take an average
+        # TODO: handle more complex weighting when we support SCORM2004+        
         total_score = 0
         for sco in scos.keys():
             sco = scos[sco]['data']
@@ -349,29 +359,26 @@ class ScormXBlock(XBlock):
                 total_score += int(sco.get('cmi.core.score.raw', 0))
             except ValueError:
                 pass
-        self.lesson_score = total_score
+        self.lesson_score = float(total_score) / float(len(scos.keys()))
 
-    def publish_grade(self, scos):
+    def _publish_grade(self, scos):
         """
         if lesson is complete with pass or fail, publish grade in LMS
         """
         if self.lesson_status in ('passed', 'failed'):
-            total_max_score = 0
-            for sco in scos.keys():
-                sco = scos[sco]['data']
-                try:
-                    sco_max = sco.get('cmi.core.score.max', DEFAULT_SCO_MAX_SCORE)
-                    sco_max = sco_max and sco_max or DEFAULT_SCO_MAX_SCORE
-                    total_max_score += int(sco_max)
-                except ValueError:
-                    pass
 
             # translate the internal score as a percentage of block's weight
+            # we are assuming here the best practice for SCORM 1.2 of a max score of 100
+            # if we weren't dealing with KESDEE publisher's incorrect usage of cmi.core.score.max
+            # we could compute based on a real max score
+            # in practice, SCOs will almost certainly have a max of 100
+            # http://www.ostyn.com/blog/2006/09/scoring-in-scorm.html
+            # TODO: handle variable max scores when we support SCORM2004+ or a better KESDEE workaround
             self.runtime.publish(
                 self,
                 'grade',
                 {
-                    'value': (float(self.lesson_score) / float(total_max_score)) * self.weight,
+                    'value': (float(self.lesson_score)/float(DEFAULT_SCO_MAX_SCORE)) * self.weight,
                     'max_value': self.weight,
                 })
 
