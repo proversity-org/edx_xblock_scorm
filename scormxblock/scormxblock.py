@@ -22,9 +22,10 @@ _ = lambda text: text
 
 SCORM_PKG_INTERNAL = {"value": "SCORM_PKG_INTERNAL", "display_name": "Internal Player: index.html in SCORM package"}
 
-
 DEFINED_PLAYERS = settings.ENV_TOKENS.get("SCORM_PLAYER_BACKENDS", {})
 DEFAULT_SCO_MAX_SCORE = 100
+DEFAULT_IFRAME_WIDTH = 800
+DEFAULT_IFRAME_HEIGHT = 400
 
 
 class ScormXBlock(XBlock):
@@ -166,8 +167,8 @@ class ScormXBlock(XBlock):
 
 
         # if display type is popup, don't use the full window width for the host iframe
-        iframe_width = self.display_type=='popup' and 800 or self.display_width;
-        iframe_height = self.display_type=='popup' and 400 or self.display_height;
+        iframe_width = self.display_type=='popup' and DEFAULT_IFRAME_WIDTH or self.display_width;
+        iframe_height = self.display_type=='popup' and DEFAULT_IFRAME_HEIGHT or self.display_height;
 
         try:
             player_config = json.loads(self.player_configuration)
@@ -344,6 +345,21 @@ class ScormXBlock(XBlock):
         # TODO: handle errors
         return Response(json.dumps(self.raw_scorm_status), content_type='application/json')
 
+    def _get_value_from_sco(self, sco, key, default):
+        """
+        return a set or default value from a key in a SCO
+        treat blank string values as empty
+        """
+        try:
+            val = sco[key]
+        except (KeyError, ValueError):
+            return default
+        finally:
+            if str(val) == '':
+                return default
+            else:
+                return val
+
     def _set_lesson_score(self, scos):
         """
         roll up a total lesson score from an average of SCO scores
@@ -351,14 +367,11 @@ class ScormXBlock(XBlock):
         # note SCORM 2004+ supports complex weighting of scores from multiple SCOs
         # see http://scorm.com/blog/2009/10/score-rollup-in-scorm-1-2-theres-no-silver-bullet/
         # For now we will weight each SCO equally and take an average
-        # TODO: handle more complex weighting when we support SCORM2004+        
+        # TODO: handle more complex weighting when we support SCORM2004+
         total_score = 0
         for sco in scos.keys():
             sco = scos[sco]['data']
-            try:
-                total_score += int(sco.get('cmi.core.score.raw', 0))
-            except ValueError:
-                pass
+            total_score += int(self._get_value_from_sco(sco, 'cmi.core.score.raw', 0))
         self.lesson_score = float(total_score) / float(len(scos.keys()))
 
     def _publish_grade(self, scos):
