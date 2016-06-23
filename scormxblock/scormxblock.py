@@ -19,10 +19,11 @@ from mako.template import Template as MakoTemplate
 # Make '_' a no-op so we can scrape strings
 _ = lambda text: text
 
-
+# importing directly from settings.XBLOCK_SETTINGS doesn't work here... doesn't have vals from ENV TOKENS yet
+scorm_settings = settings.ENV_TOKENS['XBLOCK_SETTINGS']['ScormXBlock']
+DEFINED_PLAYERS = scorm_settings.get("SCORM_PLAYER_BACKENDS", {})
+SCORM_STORAGE = scorm_settings.get("SCORM_PKG_STORAGE_DIR", "scormpackages")
 SCORM_PKG_INTERNAL = {"value": "SCORM_PKG_INTERNAL", "display_name": "Internal Player: index.html in SCORM package"}
-
-DEFINED_PLAYERS = settings.ENV_TOKENS.get("SCORM_PLAYER_BACKENDS", {})
 DEFAULT_SCO_MAX_SCORE = 100
 DEFAULT_IFRAME_WIDTH = 800
 DEFAULT_IFRAME_HEIGHT = 400
@@ -222,9 +223,8 @@ class ScormXBlock(XBlock):
             file = request.params['file'].file
             zip_file = zipfile.ZipFile(file, 'r')
             storage = default_storage
-
-            scorm_storage = settings.ENV_TOKENS.get("SCORM_PKG_STORAGE_DIR", "scormpackages")
-            path_to_file = os.path.join(scorm_storage, self.location.block_id)
+            
+            path_to_file = os.path.join(SCORM_STORAGE, self.location.block_id)
 
             if storage.exists(os.path.join(path_to_file, 'imsmanifest.xml')):
                 try:
