@@ -81,12 +81,22 @@ function ScormXBlock(runtime, element) {
 
     //post message with data to player window
     const UIpad = 30;
+    launch_btn = $('#scorm-launch-${block_id}');
     host_div = $('#scormxblock-${block_id}');
     host_div.data('csrftoken', $.cookie('csrftoken'));
     winspecs = 'width='+host_div.data('display_width')+',height='+(host_div.data('display_height')+UIpad)+',location=no,resizable=yes,status=no,titlebar=yes,toolbar=no,scrollbars=no';
-    playerwin = window.open(host_div.data('player_url'), 'player_scorm_'+host_div.data('block_id'), winspecs);
-    $(playerwin).on('load', function(){
-      playerwin.postMessage(host_div.data(), '*');
-    });
+    var playerwin;
+    launch_btn.on('click', function() {
+      playerwin = null;
+      playerwin = window.open(host_div.data('player_url'), 'player_scorm_'+host_div.data('block_id'), winspecs);
+      $(playerwin).on('load', function(){
+        playerwin.postMessage(host_div.data(), '*');
+        launch_btn.attr('disabled','true');
+      });
+      $(playerwin).on('unload', function() {
+        launch_btn.removeAttr('disabled');
+      })
+    });    
+
   });
 }
