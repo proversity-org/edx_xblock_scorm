@@ -185,7 +185,9 @@ class ScormXBlock(XBlock):
                                      ).render_unicode())
         frag.add_css(self.resource_string("static/css/scormxblock.css"))
         js = self.resource_string("static/js/src/scormxblock.js")
-        frag.add_javascript(js)
+        context['block_id'] = self.url_name
+        jsfrag = MakoTemplate(js).render_unicode(**context)
+        frag.add_javascript(jsfrag)
         frag.initialize_js('ScormXBlock')
         return frag
 

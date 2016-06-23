@@ -50,6 +50,8 @@ function ScormXBlock(runtime, element) {
       return true;
     };
 
+    /*
+    TODO: this is all racoongang stubs
     this.LMSCommit = function() {
         console.log("LMSCommit");
         return "true";
@@ -69,6 +71,8 @@ function ScormXBlock(runtime, element) {
       console.log("LMSGetDiagnostic");
       return "Some Diagnostice";
     }
+    */
+
   }
 
   $(function ($) {
@@ -76,13 +80,13 @@ function ScormXBlock(runtime, element) {
     console.log("Initial SCORM data...");
 
     //post message with data to player window
-    //TODO: make sure we have the right iframe
-    frame = $('iframe');
-    frame.on('load', function(){
-      playerWin = this.contentWindow;
-      data = frame.data();
-      data.csrftoken = $.cookie('csrftoken');
-      playerWin.postMessage(data, '*');
+    const UIpad = 30;
+    host_div = $('#scormxblock-${block_id}');
+    host_div.data('csrftoken', $.cookie('csrftoken'));
+    winspecs = 'width='+host_div.data('display_width')+',height='+(host_div.data('display_height')+UIpad)+',location=no,resizable=yes,status=no,titlebar=yes,toolbar=no,scrollbars=no';
+    playerwin = window.open(host_div.data('player_url'), 'player_scorm_'+host_div.data('block_id'), winspecs);
+    $(playerwin).on('load', function(){
+      playerwin.postMessage(host_div.data(), '*');
     });
   });
 }
