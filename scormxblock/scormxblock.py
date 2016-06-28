@@ -35,6 +35,7 @@ DEFAULT_IFRAME_HEIGHT = 400
 class ScormXBlock(XBlock):
 
     has_score = True
+    has_author_view = True
 
     display_name = String(
         display_name=_("Display Name"),
@@ -216,7 +217,7 @@ class ScormXBlock(XBlock):
                 frag = add_staff_markup(dj_user, has_instructor_access, disable_staff_debug_info, block, view, frag, context)
         return frag
 
-    def author_view (self, context=None):
+    def author_view(self, context=None):
         return self.student_view(context, authoring=True)
 
     def studio_view(self, context=None):
