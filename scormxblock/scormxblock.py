@@ -143,7 +143,7 @@ class ScormXBlock(XBlock):
         data = pkg_resources.resource_string(__name__, path)
         return data.decode("utf8")
 
-    def student_view(self, context=None):
+    def student_view(self, context=None, authoring=False):
         scheme = 'https' if settings.HTTPS == 'on' else 'http'
         lms_base = settings.ENV_TOKENS.get('LMS_BASE')
         scorm_player_url = ""
@@ -164,7 +164,7 @@ class ScormXBlock(XBlock):
 
         # don't call handlers if student_view is not called from within LMS
         # (not really a student)
-        if self.runtime.HOSTNAME:
+        if not authoring:
             get_url = '{}://{}{}'.format(scheme, lms_base, self.runtime.handler_url(self, "get_raw_scorm_status"))
             set_url = '{}://{}{}'.format(scheme, lms_base, self.runtime.handler_url(self, "set_raw_scorm_status"))
         # PreviewModuleSystem (runtime Mixin from Studio) won't have a hostname            
@@ -202,7 +202,7 @@ class ScormXBlock(XBlock):
         # TODO: is there another way to approach this?  key's location.category isn't mutable to spoof 'problem',
         # like setting the name in the entry point to 'problem'.  Doesn't seem like a good idea.  Better to 
         # have 'staff debuggable' categories configurable in settings or have an XBlock declare itself staff debuggable
-        if SCORM_DISPLAY_STAFF_DEBUG_INFO:
+        if SCORM_DISPLAY_STAFF_DEBUG_INFO and not authoring:  # don't show for author preview
             from courseware.access import has_access
             from courseware.courses import get_course_by_id
 
@@ -215,6 +215,9 @@ class ScormXBlock(XBlock):
                 view = 'student_view'
                 frag = add_staff_markup(dj_user, has_instructor_access, disable_staff_debug_info, block, view, frag, context)
         return frag
+
+    def author_view (self, context=None):
+        return self.student_view(context, authoring=True)
 
     def studio_view(self, context=None):
         html = self.resource_string("static/html/studio.html")
