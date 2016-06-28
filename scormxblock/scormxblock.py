@@ -13,6 +13,8 @@ from xblock.core import XBlock
 from xblock.fields import Scope, String, Integer, Boolean
 from xblock.fragment import Fragment
 
+from openedx.core.lib.xblock_utils import add_staff_markup
+
 from mako.template import Template as MakoTemplate
 
 
@@ -23,6 +25,7 @@ _ = lambda text: text
 scorm_settings = settings.ENV_TOKENS['XBLOCK_SETTINGS']['ScormXBlock']
 DEFINED_PLAYERS = scorm_settings.get("SCORM_PLAYER_BACKENDS", {})
 SCORM_STORAGE = scorm_settings.get("SCORM_PKG_STORAGE_DIR", "scormpackages")
+SCORM_DISPLAY_STAFF_DEBUG_INFO = scorm_settings.get("SCORM_DISPLAY_STAFF_DEBUG_INFO", False)
 SCORM_PKG_INTERNAL = {"value": "SCORM_PKG_INTERNAL", "display_name": "Internal Player: index.html in SCORM package"}
 DEFAULT_SCO_MAX_SCORE = 100
 DEFAULT_IFRAME_WIDTH = 800
@@ -115,7 +118,10 @@ class ScormXBlock(XBlock):
     def student_name(self):
         if hasattr(self, "xmodule_runtime"):
             user = self.xmodule_runtime._services['user'].get_current_user()
-            return user.full_name
+            try:
+                return user.display_name
+            except AttributeError:
+                return user.full_name
         else:
             return None
 
@@ -189,6 +195,25 @@ class ScormXBlock(XBlock):
         jsfrag = MakoTemplate(js).render_unicode(**context)
         frag.add_javascript(jsfrag)
         frag.initialize_js('ScormXBlock')
+
+        # TODO: this will only work to display staff debug info if 'scormxblock' is one of the
+        # categories of blocks that are specified in lms/templates/staff_problem_info.html so this will
+        # for now have to be overridden in theme or directly in edx-platform
+        # TODO: is there another way to approach this?  key's location.category isn't mutable to spoof 'problem',
+        # like setting the name in the entry point to 'problem'.  Doesn't seem like a good idea.  Better to 
+        # have 'staff debuggable' categories configurable in settings or have an XBlock declare itself staff debuggable
+        if SCORM_DISPLAY_STAFF_DEBUG_INFO:
+            from courseware.access import has_access
+            from courseware.courses import get_course_by_id
+
+            course = get_course_by_id(self.xmodule_runtime.course_id)
+            dj_user = self.xmodule_runtime._services['user']._django_user
+            has_instructor_access = bool(has_access(dj_user, 'instructor', course))
+            if has_instructor_access:
+                disable_staff_debug_info = settings.FEATURES.get('DISPLAY_DEBUG_INFO_TO_STAFF', True) and False or True
+                block = self
+                view = 'student_view'
+                frag = add_staff_markup(dj_user, has_instructor_access, disable_staff_debug_info, block, view, frag, context)
         return frag
 
     def studio_view(self, context=None):
