@@ -173,7 +173,6 @@ class ScormXBlock(XBlock):
             # we don't want to get/set SCORM status from preview
             get_url = set_url = '#'
 
-
         # if display type is popup, don't use the full window width for the host iframe
         iframe_width = self.display_type=='popup' and DEFAULT_IFRAME_WIDTH or self.display_width;
         iframe_height = self.display_type=='popup' and DEFAULT_IFRAME_HEIGHT or self.display_height;
@@ -190,12 +189,13 @@ class ScormXBlock(XBlock):
                                                        player_config=player_config, 
                                                        scorm_file=self.scorm_file)
                                      ).render_unicode())
+
         frag.add_css(self.resource_string("static/css/scormxblock.css"))
-        js = self.resource_string("static/js/src/scormxblock.js")
         context['block_id'] = self.url_name
+        js = self.resource_string("static/js/src/scormxblock.js")
         jsfrag = MakoTemplate(js).render_unicode(**context)
         frag.add_javascript(jsfrag)
-        frag.initialize_js('ScormXBlock')
+
 
         # TODO: this will only work to display staff debug info if 'scormxblock' is one of the
         # categories of blocks that are specified in lms/templates/staff_problem_info.html so this will
@@ -215,6 +215,8 @@ class ScormXBlock(XBlock):
                 block = self
                 view = 'student_view'
                 frag = add_staff_markup(dj_user, has_instructor_access, disable_staff_debug_info, block, view, frag, context)
+
+        frag.initialize_js('ScormXBlock')
         return frag
 
     def author_view(self, context=None):
