@@ -91,7 +91,7 @@ function ScormXBlock(runtime, element) {
       $(host_frame).on('load', function() {
         playerWin = host_frame[0].contentWindow;
         playerWin.postMessage(host_frame.data(), '*');
-        launch_btn.attr('disabled','true');
+        // launch_btn.attr('disabled','true');
       });
       $(host_frame).on('unload', function() {
         launch_btn.removeAttr('disabled');
