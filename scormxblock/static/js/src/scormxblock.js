@@ -79,21 +79,21 @@ function ScormXBlock(runtime, element) {
     API = new SCORM_API();
     console.log("Initial SCORM data...");
 
-    //post message with data to player window
+    //post message with data to player frame
+    //player must be in an iframe and not a popup due to limitations in Internet Explorer's postMessage implementation
     const UIpad = 30;
     launch_btn = $('#scorm-launch-${block_id}');
-    host_div = $('#scormxblock-${block_id}');
-    host_div.data('csrftoken', $.cookie('csrftoken'));
-    winspecs = 'width='+host_div.data('display_width')+',height='+(host_div.data('display_height')+UIpad)+',location=no,resizable=yes,status=no,titlebar=yes,toolbar=no,scrollbars=no';
-    var playerwin;
+    host_frame = $('#scormxblock-${block_id}');
+    host_frame.data('csrftoken', $.cookie('csrftoken'));
     launch_btn.on('click', function() {
-      playerwin = null;
-      playerwin = window.open(host_div.data('player_url'), 'player_scorm_'+host_div.data('block_id'), winspecs);
-      $(playerwin).on('load', function(){
-        playerwin.postMessage(host_div.data(), '*');
+      playerWin = null;
+      host_frame.attr('src',host_frame.data('player_url'));
+      $(host_frame).on('load', function() {
+        playerWin = host_frame[0].contentWindow;
+        playerWin.postMessage(host_frame.data(), '*');
         launch_btn.attr('disabled','true');
       });
-      $(playerwin).on('unload', function() {
+      $(host_frame).on('unload', function() {
         launch_btn.removeAttr('disabled');
       })
     });    
