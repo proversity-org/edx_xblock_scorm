@@ -216,7 +216,7 @@ class ScormXBlock(XBlock):
                 view = 'student_view'
                 frag = add_staff_markup(dj_user, has_instructor_access, disable_staff_debug_info, block, view, frag, context)
 
-        frag.initialize_js('ScormXBlock')
+        frag.initialize_js('ScormXBlock_{0}'.format(context['block_id']))
         return frag
 
     def author_view(self, context=None):
