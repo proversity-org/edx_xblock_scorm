@@ -27,13 +27,20 @@ EDXAPP_XBLOCK_SETTINGS:
         "configuration": {}
       }
     },
-    "SCORM_PKG_STORAGE_DIR": "scorms",
+    "SCORM_PKG_STORAGE_DIR": "scorms"
   }
 ```
 
 Each backend is a key under `SCORM_PLAYER_BACKENDS` and should provide a `name` which will appear in the player dropdown in Studio, a `location` which is a path the the player's default HTML page from the the web root, and optionally an additional key `configuration` storing JSON values which will override any JSON configuration keys used by the player (not yet fully implemented).
 
 * Configure a SCORM package storage directory.  This will be the directory name underneath the default `MEDIA_ROOT` as specified in your Django settings, or the directory used for external storage (e.g., Amazon S3.  S3 storage will require using CloudFront or another means to serve S3 assets from the same protocol, domain, subdomain,and port to get around cross-domain issues).
+
+* Configure Staff Debug Info: If you want staff debug info for SCORM XBlocks to be visible to instructors and other permitted staff, add this key to your `EDXAPP_XBLOCK_SETTINGS` key for 'ScormXBlock'.  Only the 'Delete Student State' action will work; 'Reset Student Attempts' and 'Rescore Student Submission' are not yet operable, but may be in the future.
+
+```    
+"SCORM_DISPLAY_STAFF_DEBUG_INFO": true
+```
+
 
 # Server configuration
 
