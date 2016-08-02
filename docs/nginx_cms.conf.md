@@ -2,8 +2,8 @@
 
 These are instructions for manual configuration of `/etc/nginx/sites-enabled/lms`.  Work is underway to handle this via Ansible.
 
-
-* Within the main `server {` block, comment out this block, as the player code contain xml and json files.  _TODO: try making this more specific to the player code directory._
+* Within the `location ~ ^/static//(?P<file>.*) {` block inside the main
+`server {` block, comment out this block, as the player code contain xml and json files.  _TODO: try making this more specific to the player code directory._
 
 ```
 # return a 403 for static files that shouldn't be
@@ -13,8 +13,7 @@ These are instructions for manual configuration of `/etc/nginx/sites-enabled/lms
 #}
 ```
 
-* Within the `location ~ ^/static//(?P<file>.*) {` block inside the main
-`server {` block, add the following
+* ... and add the following
 
 ```
     # scorm players

@@ -28,7 +28,8 @@ to make a more restrictive CORS header; e.g,.
 
 You can also choose a different path from the web root, if you like, but the default configuration will use `/media/scorms`.
 
-* Within the main `server {` block, comment out this block, as the player code contain xml and json files.  _TODO: try making this more specific to the player code directory._
+* Within the `location ~ ^/static//(?P<file>.*) {` block inside the main
+`server {` block, comment comment out this block, as the player code contain xml and json files.  _TODO: try making this more specific to the player code directory._
 
 ```
 # return a 403 for static files that shouldn't be
@@ -38,8 +39,7 @@ You can also choose a different path from the web root, if you like, but the def
 #}
 ```
 
-* Within the `location ~ ^/static//(?P<file>.*) {` block inside the main
-`server {` block, add the following
+* ...and add the following
 
 ```
     # scorm players

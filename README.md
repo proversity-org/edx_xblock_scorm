@@ -20,6 +20,7 @@ Currently supports SCORM 1.2 standard, but not yet SCORM 2004.  It supports mult
 ```
 EDXAPP_XBLOCK_SETTINGS:
   "ScormXBlock": {
+    "SCORM_PLAYER_LOCAL_STORAGE_ROOT": "scormplayers",
     "SCORM_PLAYER_BACKENDS": {
       "ssla": {
         "name": "SSLA",
@@ -31,7 +32,7 @@ EDXAPP_XBLOCK_SETTINGS:
   }
 ```
 
-Each backend is a key under `SCORM_PLAYER_BACKENDS` and should provide a `name` which will appear in the player dropdown in Studio, a `location` which is a path the the player's default HTML page from the the web root, and optionally an additional key `configuration` storing JSON values which will override any JSON configuration keys used by the player (not yet fully implemented).
+Each backend is a key under `SCORM_PLAYER_BACKENDS` and should provide a `"name"` which will appear in the player dropdown in Studio, a `"location"` which is a path to the the player's default HTML page from the the web root, and optionally an additional key `"configuration"` storing JSON values which will override any JSON configuration keys used by the player (not yet fully implemented). Backend keys must not contain spaces or punctuation.
 
 * Configure a SCORM package storage directory.  This will be the directory name underneath the default `MEDIA_ROOT` as specified in your Django settings, or the directory used for external storage (e.g., Amazon S3.  S3 storage will require using CloudFront or another means to serve S3 assets from the same protocol, domain, subdomain,and port to get around cross-domain issues).
 
