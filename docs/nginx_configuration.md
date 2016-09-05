@@ -30,7 +30,7 @@ Note: If your configuration directory (`edx_ansible/edx_ansible`) on the server 
 ## Run Ansible Nginx role
 
 * Once you have done this, rerun the Nginx Ansible role for the LMS and CMS sites with this commands on your edxapp server.
-  - `sudo /edx/app/edx_ansible/venvs/edx_ansible/bin/ansible-playbook -i localhost, -c local /edx/app/edx_ansible/edx_ansible/playbooks/run_role.yml -e"role=nginx"  -e"@/edx/app/edx_ansible/edx_ansible/playbooks/roles/edxapp/defaults/main.yml" -e"@/edx/app/edx_ansible/server-vars.yml" -e'{"nginx_sites":["lms", "cms"]}' -t install:configuration -vvv`
+  - `sudo /edx/app/edx_ansible/venvs/edx_ansible/bin/ansible-playbook -i localhost, -c local /edx/app/edx_ansible/edx_ansible/playbooks/run_role.yml -e"role=nginx"  -e"@/edx/app/edx_ansible/edx_ansible/playbooks/roles/edxapp/defaults/main.yml" -e"@/edx/app/edx_ansible/server-vars.yml" -e'{"nginx_sites":["lms", "cms"], "nginx_default_sites": ["lms"]}' -t install:configuration -vvv`
 
 * This will update the `lms` and `cms` configuration on Nginx and should reload the Nginx configuration.  To make sure you have the new configuration in place,:
 ```
