@@ -45,7 +45,7 @@ Each backend is a key under `SCORM_PLAYER_BACKENDS` and should provide a `"name"
 
 # Server configuration
 
-Nginx (or other front-end web server) must be configured to serve SCORM content. See the files [`docs/nginx_lms.conf.md`](docs/nginx_lms.conf.md) and [`docs/nginx_cms.conf.md`](docs/nginx_cms.conf.md)  for edits that need to be made to your `/etc/nginx/sites-enabled/lms` and `/etc/nginx/sites-enabled/cms` files to serve your SCORM content.  Work is underway on Ansible configuration for Nginx.
+Nginx (or other front-end web server) must be configured to serve SCORM content. See the file [`docs/nginx_configuration.md`](docs/nginx_configuration.md) for edits that need to be made to your `/etc/nginx/sites-enabled/lms` and `/etc/nginx/sites-enabled/cms` files to serve your SCORM content.
 
 # Usage
 * In Studio, add `scormxblock` to the list of advanced modules in the advanced settings of a course.
