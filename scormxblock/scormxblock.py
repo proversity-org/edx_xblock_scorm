@@ -117,13 +117,12 @@ class ScormXBlock(XBlock):
 
     @property
     def student_name(self):
-        # SCORM 1.2 API expects student name as "last, first"
         if hasattr(self, "xmodule_runtime"):
             user = self.xmodule_runtime._services['user'].get_current_user()
             try:
-                return self._reverse_student_name(user.display_name)
+                return user.display_name
             except AttributeError:
-                return self._reverse_student_name(user.full_name)
+                return user.full_name
         else:
             return None
 
