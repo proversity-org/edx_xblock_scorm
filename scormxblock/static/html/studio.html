@@ -67,11 +67,21 @@
     </li>
     <li class="field comp-setting-entry is-set">
       <div class="wrapper-comp-setting">
+        <label class="label setting-label" for="encoding">Text Encoding</label>
+        <select class="input setting-input" name="encoding" id="encoding">
+          %for opt in block.fields['encoding'].values:
+            <option value="${opt['value']}" ${block.encoding == opt['value'] and 'selected'}>${opt['display_name']}</option>
+          %endfor
+        </select>  
+        <div class="setting-help" style="display:block">${block.fields['encoding'].help}</div>        
+      </div>
+    </li>
+        <li class="field comp-setting-entry is-set">
+      <div class="wrapper-comp-setting">
         <label class="label setting-label" for="player_configuration">Player Configuration</label>
         <textarea class="input setting-input" name="player_configuration" id="player_configuration" cols="50" rows="10">${block.player_configuration}</textarea>
         <div class="setting-help" style="display:block">${block.fields['player_configuration'].help}</div>        
       </div>
-
     </li>
 
   </ul>

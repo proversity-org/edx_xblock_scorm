@@ -5,6 +5,7 @@ import zipfile
 import shutil
 import tempfile
 import logging
+import encodings
 
 from django.conf import settings
 from django.core.files.storage import default_storage
@@ -36,6 +37,7 @@ DEFAULT_SCO_MAX_SCORE = 100
 DEFAULT_IFRAME_WIDTH = 800
 DEFAULT_IFRAME_HEIGHT = 400
 
+AVAIL_ENCODINGS = encodings.aliases.aliases
 
 class ScormXBlock(XBlock):
 
@@ -104,6 +106,13 @@ class ScormXBlock(XBlock):
         display_name =_("Display Height (px)"),
         help=_('Height of iframe or popup window'),
         default=450,
+        scope=Scope.settings
+    )
+    encoding = String(
+        display_name=_("SCORM Package text encoding"),
+        default='cp850',
+        help=_("Character set used in SCORM package.  Defaults to cp850 (or IBM850), for Latin-1: Western European languages)"),
+        values=[{"value": AVAIL_ENCODINGS[key], "display_name": key} for key in sorted(AVAIL_ENCODINGS.keys())],
         scope=Scope.settings
     )
     player_configuration = String(
@@ -251,6 +260,7 @@ class ScormXBlock(XBlock):
         self.display_height = request.params['display_height']
         self.display_type = request.params['display_type']
         self.scorm_player = request.params['scorm_player']
+        self.encoding = request.params['encoding']
 
         if request.params['player_configuration']:
             try:
@@ -290,9 +300,9 @@ class ScormXBlock(XBlock):
 
             # TODO: look at optimization of file handling, save
 
-
             for f in to_store:
-                f_path = f.replace(tempdir, '')
+                # defensive decode/encode from zip
+                f_path = f.decode(self.encoding).encode('utf-8').replace(tempdir, '')
                 with open(f, 'rb+') as fh:
                     try:
                         storage.save('{}{}'.format(path_to_file, f_path), fh)
