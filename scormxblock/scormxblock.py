@@ -4,9 +4,11 @@ import pkg_resources
 import zipfile
 import shutil
 import tempfile
+import logging
 
 from django.conf import settings
 from django.core.files.storage import default_storage
+from django.utils import encoding
 from webob import Response
 
 from xblock.core import XBlock
@@ -20,6 +22,9 @@ from mako.template import Template as MakoTemplate
 
 # Make '_' a no-op so we can scrape strings
 _ = lambda text: text
+
+logger = logging.getLogger(__name__)
+
 
 # importing directly from settings.XBLOCK_SETTINGS doesn't work here... doesn't have vals from ENV TOKENS yet
 scorm_settings = settings.ENV_TOKENS['XBLOCK_SETTINGS']['ScormXBlock']
@@ -284,10 +289,16 @@ class ScormXBlock(XBlock):
                     to_store.append(os.path.join(os.path.abspath(dirpath), f))
 
             # TODO: look at optimization of file handling, save
+
+
             for f in to_store:
                 f_path = f.replace(tempdir, '')
                 with open(f, 'rb+') as fh:
-                    storage.save('{}{}'.format(path_to_file, f_path), fh)
+                    try:
+                        storage.save('{}{}'.format(path_to_file, f_path), fh)
+                    except encoding.DjangoUnicodeDecodeError, e:
+                        logger.warn('SCORM XBlock Couldn\'t store file {} to storage. {}'.format(f, e))
+
             shutil.rmtree(tempdir)
 
             # strip querystrings
