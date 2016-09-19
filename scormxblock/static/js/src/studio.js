@@ -12,6 +12,7 @@ function ScormStudioXBlock(runtime, element) {
     var display_height = $(element).find('input[name=display_height]').val();
     var display_type = $(element).find('input[name=display_type]:checked').val();
     var scorm_player = $(element).find('select[name=scorm_player]').val();
+    var encoding = $(element).find('select[name=encoding]').val();
     var player_configuration = $(element).find('textarea[name=player_configuration]').val();
     form_data.append('file', file_data);
     form_data.append('display_name', display_name);
@@ -21,6 +22,7 @@ function ScormStudioXBlock(runtime, element) {
     form_data.append('weight', weight);
     form_data.append('display_type', display_type);
     form_data.append('scorm_player', scorm_player);
+    form_data.append('encoding', encoding);
     form_data.append('player_configuration', player_configuration);
     runtime.notify('save', {state: 'start'});
 
