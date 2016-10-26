@@ -17,6 +17,7 @@ from xblock.fields import Scope, String, Integer, Boolean
 from xblock.fragment import Fragment
 
 from openedx.core.lib.xblock_utils import add_staff_markup
+from microsite_configuration import microsite
 
 from mako.template import Template as MakoTemplate
 
@@ -166,6 +167,9 @@ class ScormXBlock(XBlock):
     def student_view(self, context=None, authoring=False):
         scheme = 'https' if settings.HTTPS == 'on' else 'http'
         lms_base = settings.ENV_TOKENS.get('LMS_BASE')
+        if microsite.is_request_in_microsite():
+            subdomain = microsite.get_value("domain_prefix", None) or microsite.get_value('microsite_config_key')
+            lms_base = "{}.{}".format(subdomain, lms_base) 
         scorm_player_url = ""
 
         if self.scorm_player == 'SCORM_PKG_INTERNAL':
