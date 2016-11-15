@@ -39,6 +39,7 @@ DEFAULT_IFRAME_HEIGHT = 400
 
 AVAIL_ENCODINGS = encodings.aliases.aliases
 
+@XBlock.wants('settings')
 class ScormXBlock(XBlock):
 
     has_score = True
@@ -314,7 +315,7 @@ class ScormXBlock(XBlock):
 
             # strip querystrings
             url = storage.url(path_to_file)
-            print settings.__dict__
+            print settings.MEDIA_URL
             url = '/media/' + url + '/index.html'
             self.scorm_file = '?' in url and url[:url.find('?')] or url
 
