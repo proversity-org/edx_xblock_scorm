@@ -39,7 +39,6 @@ DEFAULT_IFRAME_HEIGHT = 400
 
 AVAIL_ENCODINGS = encodings.aliases.aliases
 
-@XBlock.wants('settings')
 class ScormXBlock(XBlock):
 
     has_score = True
