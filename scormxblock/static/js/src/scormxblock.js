@@ -3,7 +3,7 @@ var csrftoken;
 function ScormXBlock_${block_id}(runtime, element) {
 
   function SCORM_API(){
-
+    console.log("SCORM_API");
     this.LMSInitialize = function(){
       console.log('LMSInitialize');
       return true;

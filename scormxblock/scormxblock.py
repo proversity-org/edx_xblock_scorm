@@ -323,6 +323,7 @@ class ScormXBlock(XBlock):
     # if player sends SCORM API JSON directly
     @XBlock.json_handler
     def scorm_get_value(self, data, suffix=''):
+        print "scorm_get_value"
         name = data.get('name')
         if name == 'cmi.core.lesson_status':
             return {'value': self.lesson_status}
@@ -331,6 +332,7 @@ class ScormXBlock(XBlock):
     # if player sends SCORM API JSON directly
     @XBlock.json_handler
     def scorm_set_value(self, data, suffix=''):
+        print "scorm_set_value"
         context = {'result': 'success'}
         name = data.get('name')
         if name == 'cmi.core.lesson_status' and data.get('value') != 'completed':
@@ -383,6 +385,7 @@ class ScormXBlock(XBlock):
         """ 
         retrieve JSON SCORM API status as stored by SSLA player (or potentially others)
         """
+        print "get_raw_scorm_status"
         # TODO: handle errors
         # TODO: this is specific to SSLA player at this point.  evaluate for broader use case
         return Response(self.raw_scorm_status, content_type='application/json')
@@ -392,6 +395,7 @@ class ScormXBlock(XBlock):
         """
         store JSON SCORM API status from SSLA player (or potentially others)
         """
+        print "set_raw_scorm_status"
         # TODO: this is specific to SSLA player at this point.  evaluate for broader use case
         data = request.POST['data']
         self.raw_scorm_status = data
