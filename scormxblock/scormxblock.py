@@ -314,7 +314,7 @@ class ScormXBlock(XBlock):
 
             # strip querystrings
             url = storage.url(path_to_file)
-            url = 'media' + url + '/index.html'
+            url = settings.MEDIA_URL + '/' + url + '/index.html'
             self.scorm_file = '?' in url and url[:url.find('?')] or url
 
         return Response(json.dumps({'result': 'success'}), content_type='application/json')
