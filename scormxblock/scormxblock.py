@@ -29,6 +29,7 @@ logger = logging.getLogger(__name__)
 
 # importing directly from settings.XBLOCK_SETTINGS doesn't work here... doesn't have vals from ENV TOKENS yet
 scorm_settings = settings.ENV_TOKENS['XBLOCK_SETTINGS']['ScormXBlock']
+MEDIA_URL = settings.ENV_TOKENS['MEDIA_URL']
 DEFINED_PLAYERS = scorm_settings.get("SCORM_PLAYER_BACKENDS", {})
 SCORM_STORAGE = scorm_settings.get("SCORM_PKG_STORAGE_DIR", "scorms")
 SCORM_DISPLAY_STAFF_DEBUG_INFO = scorm_settings.get("SCORM_DISPLAY_STAFF_DEBUG_INFO", False)
@@ -314,7 +315,7 @@ class ScormXBlock(XBlock):
 
             # strip querystrings
             url = storage.url(path_to_file)
-            print settings.MEDIA_URL
+            print MEDIA_URL
             url = '/media/' + url + '/index.html'
             self.scorm_file = '?' in url and url[:url.find('?')] or url
 
