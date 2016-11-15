@@ -314,7 +314,7 @@ class ScormXBlock(XBlock):
 
             # strip querystrings
             url = storage.url(path_to_file)
-            print settings
+            print settings.__dict__
             url = '/media/' + url + '/index.html'
             self.scorm_file = '?' in url and url[:url.find('?')] or url
 
